@@ -1,2 +1,5 @@
-# mirepro-go
-Minimal Reverse Proxy in Go
+# Minimal Reverse Proxy
+
+Written in go.
+
+
