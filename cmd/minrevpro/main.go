@@ -19,6 +19,9 @@ var portFlag = flag.String("port", "8080", "Proxy port")
 var hostFlag = flag.String("host", "", "Proxy host")
 var secretFlag = flag.String("secret", "", "Proxy secret")
 var basePathFlag = flag.String("basepath", "", "base path")
+var caCertFlag = flag.String("ca-cert", "", "CA cert")
+var clientCertFlag = flag.String("client-cert", "", "client cert")
+var clientKeyFlag = flag.String("client-key", "", "client key")
 
 func main() {
 	flag.Parse()
@@ -41,6 +44,15 @@ func main() {
 	}
 	if *basePathFlag != "" {
 		opts = append(opts, minrevpro.WithBasePath(*basePathFlag))
+	}
+	if *caCertFlag != "" {
+		opts = append(opts, minrevpro.WithCACert(*caCertFlag))
+	}
+	if *clientCertFlag != "" {
+		opts = append(opts, minrevpro.WithClientCert(*clientCertFlag))
+	}
+	if *clientKeyFlag != "" {
+		opts = append(opts, minrevpro.WithClientKey(*clientKeyFlag))
 	}
 	proxy := minrevpro.NewReverseProxy(
 		target,

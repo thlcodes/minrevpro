@@ -1,7 +1,10 @@
 package minrevpro
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"errors"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/http/httputil"
@@ -27,6 +30,9 @@ type ReverseProxy struct {
 	mw           []Middleware
 	log          *log.Logger
 	basePath     string
+	caCert       []byte
+	clientCert   []byte
+	clientKey    []byte
 
 	server *http.Server
 	proxy  *httputil.ReverseProxy
@@ -45,6 +51,7 @@ func NewReverseProxy(target *url.URL, opts ...OptionFunc) *ReverseProxy {
 		log:    log.New(os.Stdout, "", log.LstdFlags),
 		proxy:  httputil.NewSingleHostReverseProxy(target),
 	}
+	p.proxy.Transport = http.DefaultTransport
 	for _, opt := range opts {
 		opt(p)
 	}
@@ -99,6 +106,45 @@ func WithMiddleware(mw ...Middleware) OptionFunc {
 	}
 }
 
+// WithCACert uses given file as ca cert
+func WithCACert(caFile string) OptionFunc {
+	return func(rp *ReverseProxy) {
+		var err error
+		if rp.caCert, err = ioutil.ReadFile(caFile); err != nil {
+			panic(err)
+		}
+		certPool := x509.NewCertPool()
+		if !certPool.AppendCertsFromPEM(rp.caCert) {
+			panic("could not add ca cert")
+		}
+		transport := rp.proxy.Transport.(*http.Transport)
+		if transport.TLSClientConfig == nil {
+			transport.TLSClientConfig = &tls.Config{}
+		}
+		transport.TLSClientConfig.RootCAs = certPool
+	}
+}
+
+// WithClientCert uses given file as client cert
+func WithClientCert(certFile string) OptionFunc {
+	return func(rp *ReverseProxy) {
+		var err error
+		if rp.clientCert, err = ioutil.ReadFile(certFile); err != nil {
+			panic(err)
+		}
+	}
+}
+
+// WithClientKey uses given file as client key
+func WithClientKey(keyFile string) OptionFunc {
+	return func(rp *ReverseProxy) {
+		var err error
+		if rp.clientKey, err = ioutil.ReadFile(keyFile); err != nil {
+			panic(err)
+		}
+	}
+}
+
 // Methods
 func (p *ReverseProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p.basePath != "" {
@@ -142,10 +188,30 @@ func (p *ReverseProxy) Start() (err error) {
 		Addr:    p.addr,
 		Handler: p,
 	}
+	if err = p.configureClientCerts(); err != nil {
+		return err
+	}
 	err = p.server.ListenAndServe()
 	if err != nil {
 		p.server = nil
 	}
+	return
+}
+
+func (p *ReverseProxy) configureClientCerts() (err error) {
+	if len(p.clientCert) == 0 && len(p.clientKey) == 0 {
+		return
+	}
+	transport := p.proxy.Transport.(*http.Transport)
+	if transport.TLSClientConfig == nil {
+		transport.TLSClientConfig = &tls.Config{}
+	}
+	var cert tls.Certificate
+	cert, err = tls.X509KeyPair(p.clientCert, p.clientKey)
+	if err != nil {
+		return
+	}
+	transport.TLSClientConfig.Certificates = append(transport.TLSClientConfig.Certificates, cert)
 	return
 }
 

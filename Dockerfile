@@ -16,8 +16,11 @@ ENV HOST ""
 ENV TARGET ""
 ENV DEBUG false
 ENV SECRET ""
+ENV CACERT ""
+ENV CLIENTCERT ""
+ENV CLIENTKEY "" 
 
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 COPY --from=builder /build/app /app
 
-CMD ["sh", "-c", "/app --port \"$PORT\" --host \"$HOST\" --target \"$TARGET\" --secret \"$SECRET\" --debug=\"$DEBUG\""]
+CMD ["sh", "-c", "/app --port \"$PORT\" --host \"$HOST\" --target \"$TARGET\" --secret \"$SECRET\" --debug=\"$DEBUG\" --ca-cert \"$CACERT\" --client-cert \"$CLIENTCERT\" --client-key \"$CLIENTKEY\""]

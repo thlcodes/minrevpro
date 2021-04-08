@@ -15,6 +15,6 @@
 vendor/
 
 *debug*
-build/app
+build/
 
 manifest*
